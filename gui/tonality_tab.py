@@ -87,6 +87,25 @@ BUILTIN_DIALOGS = [
             {"role": "llm", "content": "Если потребуется помощь с конкретными параметрами, дайте знать."},
             {"role": "user", "content": "Спасибо, я разобрался. Ваш анализ помог."}
         ]
+    },
+    {
+        "name": "Длинный диалог (7 пар)",
+        "messages": [
+            {"role": "llm", "content": "Здравствуйте! Чем могу помочь?"},
+            {"role": "user", "content": "Расскажите о преимуществах Python."},
+            {"role": "llm", "content": "Python — язык с простым синтаксисом, огромным сообществом и библиотеками для науки, веба, автоматизации."},
+            {"role": "user", "content": "А есть ли недостатки?"},
+            {"role": "llm", "content": "Да, медленнее компилируемых языков, сложности с многопоточностью из-за GIL."},
+            {"role": "user", "content": "Что такое GIL?"},
+            {"role": "llm", "content": "Global Interpreter Lock блокирует выполнение нескольких потоков одновременно."},
+            {"role": "user", "content": "Понял, спасибо! Помогло."},
+            {"role": "llm", "content": "Обращайтесь!"},
+            {"role": "user", "content": "Ок."},
+            {"role": "llm", "content": "Если будут ещё вопросы, я здесь."},
+            {"role": "user", "content": "Спасибо, пока что всё."},
+            {"role": "llm", "content": "Хорошего дня!"},
+            {"role": "user", "content": "И вам!"}
+        ]
     }
 ]
 
@@ -96,6 +115,7 @@ class TonalityTab(ttk.Frame):
         super().__init__(parent, padding=10)
         self.engine = ExplainTrust()
         self.messages = []
+        self.cbar = None
         self._build_ui()
 
     def _build_ui(self):
@@ -181,9 +201,9 @@ class TonalityTab(ttk.Frame):
         ctis = []
         i = 0
         while i < len(self.messages) - 1:
-            if self.messages[i]['role'] == 'llm' and self.messages[i + 1]['role'] == 'user':
+            if self.messages[i]['role'] == 'llm' and self.messages[i+1]['role'] == 'user':
                 llm_text = self.messages[i]['content']
-                user_text = self.messages[i + 1]['content']
+                user_text = self.messages[i+1]['content']
                 try:
                     res = self.engine.evaluate({'llm_response': llm_text, 'user_reply': user_text})
                 except Exception:
@@ -192,7 +212,7 @@ class TonalityTab(ttk.Frame):
                 cti = res['CTI']
                 sent_llm = simple_sentiment(llm_text)
                 sent_user = simple_sentiment(user_text)
-                pairs.append((len(pairs) + 1, cti, sent_llm, sent_user))
+                pairs.append((len(pairs)+1, cti, sent_llm, sent_user))
                 sentiments_llm.append(sent_llm)
                 sentiments_user.append(sent_user)
                 ctis.append(cti)
@@ -210,7 +230,7 @@ class TonalityTab(ttk.Frame):
             self.table.insert("", tk.END, values=(idx, f"{cti:.2f}", f"{s_llm:.3f}", f"{s_user:.3f}"))
 
         # Удаляем старый colorbar, если он был
-        if hasattr(self, 'cbar') and self.cbar is not None:
+        if self.cbar is not None:
             self.cbar.remove()
             self.cbar = None
 
@@ -222,8 +242,8 @@ class TonalityTab(ttk.Frame):
         self.ax.grid(True, alpha=0.25)
 
         # Фоновые зоны
-        self.ax.axvspan(-1.1, -0.05, facecolor='#FFCDD2', alpha=0.15)  # негатив
-        self.ax.axvspan(0.05, 1.1, facecolor='#C8E6C9', alpha=0.15)  # позитив
+        self.ax.axvspan(-1.1, -0.05, facecolor='#FFCDD2', alpha=0.15)   # негатив
+        self.ax.axvspan( 0.05,  1.1, facecolor='#C8E6C9', alpha=0.15)   # позитив
 
         # Цветовая карта для точек в зависимости от CTI
         from matplotlib.colors import Normalize
@@ -251,8 +271,8 @@ class TonalityTab(ttk.Frame):
         self.ax.axhline(y=avg_cti, color='#555555', linestyle='--', alpha=0.7,
                         label=f'Средний CTI: {avg_cti:.1f}')
 
-        # Цветовая шкала (сохраняем ссылку для последующего удаления)
-        self.cbar = plt.colorbar(sc_llm, ax=self.ax, fraction=0.035, pad=0.04)
+        # Цветовая шкала — используем self.fig.colorbar, чтобы избежать привязки к другой фигуре
+        self.cbar = self.fig.colorbar(sc_llm, ax=self.ax, fraction=0.035, pad=0.04)
         self.cbar.set_label('CTI', rotation=270, labelpad=15)
 
         # Фиксируем оси
