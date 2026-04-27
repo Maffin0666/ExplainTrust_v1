@@ -47,6 +47,25 @@ BUILTIN_DIALOGS = [
             {"role": "llm", "content": "Если потребуется помощь с конкретными параметрами, дайте знать."},
             {"role": "user", "content": "Спасибо, я разобрался. Ваш анализ помог."}
         ]
+    },
+    {
+        "name": "Длинный диалог (7 пар)",
+        "messages": [
+            {"role": "llm", "content": "Здравствуйте! Чем могу помочь?"},
+            {"role": "user", "content": "Расскажите о преимуществах Python."},
+            {"role": "llm", "content": "Python — язык с простым синтаксисом, огромным сообществом и библиотеками для науки, веба, автоматизации."},
+            {"role": "user", "content": "А есть ли недостатки?"},
+            {"role": "llm", "content": "Да, медленнее компилируемых языков, сложности с многопоточностью из-за GIL."},
+            {"role": "user", "content": "Что такое GIL?"},
+            {"role": "llm", "content": "Global Interpreter Lock блокирует выполнение нескольких потоков одновременно."},
+            {"role": "user", "content": "Понял, спасибо! Помогло."},
+            {"role": "llm", "content": "Обращайтесь!"},
+            {"role": "user", "content": "Ок."},
+            {"role": "llm", "content": "Если будут ещё вопросы, я здесь."},
+            {"role": "user", "content": "Спасибо, пока что всё."},
+            {"role": "llm", "content": "Хорошего дня!"},
+            {"role": "user", "content": "И вам!"}
+        ]
     }
 ]
 
@@ -70,6 +89,7 @@ class AnalysisTab(ttk.Frame):
 
         ttk.Button(ctrl, text="Загрузить JSON", command=self._load_dialog_json).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Анализировать", command=self._analyze_dialog).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl, text="Radar", command=self._show_radar).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(self, text="Текст диалога (LLM: ... / User: ...):", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
         self.dialog_text = tk.Text(self, height=8, wrap='word', font=('Segoe UI', 10), bg='#fafafa')
@@ -83,7 +103,6 @@ class AnalysisTab(ttk.Frame):
         self.turn_combo.pack(fill='x', pady=(0, 5))
         self.turn_combo.bind('<<ComboboxSelected>>', self._show_turn_analysis)
 
-        # Таблица правил
         self.rules_tree = ttk.Treeview(bottom, columns=("rule", "activation"), show='headings', height=6)
         self.rules_tree.heading("rule", text="Активированные правила")
         self.rules_tree.heading("activation", text="Степень активации")
@@ -91,7 +110,6 @@ class AnalysisTab(ttk.Frame):
         self.rules_tree.column("activation", width=100, anchor='center')
         self.rules_tree.pack(fill=tk.BOTH, expand=True, pady=5)
 
-        # График признаков
         self.feat_fig, self.feat_ax = plt.subplots(figsize=(5, 3))
         self.feat_canvas = FigureCanvasTkAgg(self.feat_fig, master=bottom)
         self.feat_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -103,7 +121,7 @@ class AnalysisTab(ttk.Frame):
                 text = ""
                 for msg in d["messages"]:
                     prefix = "LLM: " if msg['role'] == 'llm' else "User: "
-                    text += prefix + msg['content'] + "\n"
+                    text += prefix + msg['content'].replace('\n', '\n    ') + "\n"
                 self.dialog_text.delete("1.0", tk.END)
                 self.dialog_text.insert("1.0", text.strip())
                 break
@@ -124,7 +142,7 @@ class AnalysisTab(ttk.Frame):
                         prefix = "User: "
                     else:
                         prefix = ""
-                    text += prefix + msg['content'] + "\n"
+                    text += prefix + msg['content'].replace('\n', '\n    ') + "\n"
                 self.dialog_text.delete("1.0", tk.END)
                 self.dialog_text.insert("1.0", text.strip())
                 messagebox.showinfo("Успех", "Диалог загружен")
@@ -139,19 +157,20 @@ class AnalysisTab(ttk.Frame):
         cur_role = None
         cur_content = []
         for line in lines:
-            if line.startswith("LLM:"):
+            clean = line.lstrip()
+            if clean.startswith("LLM:"):
                 if cur_role and cur_content:
                     msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
                 cur_role = 'llm'
-                cur_content = [line[4:].strip()]
-            elif line.startswith("User:"):
+                cur_content = [clean[4:].strip()]
+            elif clean.startswith("User:"):
                 if cur_role and cur_content:
                     msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
                 cur_role = 'user'
-                cur_content = [line[5:].strip()]
+                cur_content = [clean[5:].strip()]
             else:
                 if cur_role:
-                    cur_content.append(line.strip())
+                    cur_content.append(clean)
         if cur_role and cur_content:
             msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
         return msgs
@@ -179,10 +198,7 @@ class AnalysisTab(ttk.Frame):
             return
         turn = self.turns[idx]
 
-        # Строим временную систему для получения определений переменных
         system, _ = fuzzy_engine.build_system()
-
-        # Собираем словарь значений признаков из turn
         input_data = {
             'SI': turn['SI'],
             'CM': turn['CM'],
@@ -202,16 +218,19 @@ class AnalysisTab(ttk.Frame):
                 univ = term.parent.universe
                 idx_val = np.argmin(np.abs(univ - val))
                 act = min(act, mf[idx_val])
-            desc = f"IF {' AND '.join([f'{t.parent.label} is {t.label}' for t in rule.antecedent_terms])} THEN CTI is {rule.consequent_term.label}"
+            # Правильный доступ к label терма консеквента
+            if rule.consequent:
+                cons_label = rule.consequent[0].term.label
+            else:
+                cons_label = "?"
+            desc = f"IF {' AND '.join([f'{t.parent.label} is {t.label}' for t in rule.antecedent_terms])} THEN CTI is {cons_label}"
             activations.append((desc, act))
 
-        # Заполняем таблицу
         self.rules_tree.delete(*self.rules_tree.get_children())
         for desc, act in activations:
             if act > 0.001:
                 self.rules_tree.insert("", tk.END, values=(desc, f"{act:.3f}"))
 
-        # График признаков
         self.feat_ax.clear()
         features = ['SI', 'CM', 'LD', 'DM', 'FQ', 'RL']
         values = [turn[f] for f in features]
@@ -220,3 +239,27 @@ class AnalysisTab(ttk.Frame):
         self.feat_ax.set_title("Значения признаков для выбранной пары")
         self.feat_ax.set_ylim(0, 1)
         self.feat_canvas.draw()
+
+    def _show_radar(self):
+        try:
+            turn = self.turns[self.turn_combo.current()]
+        except:
+            messagebox.showerror("Ошибка", "Сначала выполните анализ диалога")
+            return
+        top = tk.Toplevel(self)
+        top.title("Radar-диаграмма признаков")
+        fig, ax = plt.subplots(figsize=(5,5), subplot_kw=dict(polar=True))
+        categories = ['SI', 'CM', 'LD', 'DM', 'FQ', 'RL']
+        values = [turn['SI'], turn['CM'], turn['LD'], turn['DM'], turn['FQ'], turn['RL']]
+        values += values[:1]
+        angles = [n / 6 * 2 * np.pi for n in range(6)]
+        angles += angles[:1]
+        ax.plot(angles, values, 'o-', linewidth=2)
+        ax.fill(angles, values, alpha=0.25)
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(categories)
+        ax.set_ylim(0, 1)
+        ax.set_title("Профиль признаков")
+        canvas = FigureCanvasTkAgg(fig, master=top)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        canvas.draw()
