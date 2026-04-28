@@ -10,7 +10,6 @@ from nltk.stem.snowball import SnowballStemmer
 
 from explaintrust import ExplainTrust
 
-# ---------- Расширенные словари тональности ----------
 POSITIVE_WORDS = {
     "отлично", "прекрасно", "замечательно", "хорошо", "верно", "правильно", "убедительно",
     "понял", "поняла", "согласен", "согласна", "спасибо", "благодарю", "ясно", "логично",
@@ -32,9 +31,7 @@ stemmer = SnowballStemmer('russian')
 POS_STEMS = {stemmer.stem(w) for w in POSITIVE_WORDS}
 NEG_STEMS = {stemmer.stem(w) for w in NEGATIVE_WORDS}
 
-
 def simple_sentiment(text):
-    """Тональность от -1 до 1 на основе стемминга."""
     words = text.lower().split()
     if not words:
         return 0.0
@@ -48,8 +45,6 @@ def simple_sentiment(text):
             neg += 1
     return (pos - neg) / len(words)
 
-
-# ---------- Встроенные диалоги ----------
 BUILTIN_DIALOGS = [
     {
         "name": "Доверительный диалог",
@@ -109,7 +104,6 @@ BUILTIN_DIALOGS = [
     }
 ]
 
-
 class TonalityTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, padding=10)
@@ -119,7 +113,6 @@ class TonalityTab(ttk.Frame):
         self._build_ui()
 
     def _build_ui(self):
-        # Панель управления
         ctrl = ttk.Frame(self)
         ctrl.pack(fill=tk.X, pady=(0, 8))
 
@@ -131,15 +124,20 @@ class TonalityTab(ttk.Frame):
 
         ttk.Button(ctrl, text="Загрузить JSON", command=self._load_dialog).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Анализировать тональность", command=self._analyze_tonality).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: Тональность",
+            "Оценивается простой словарной моделью: подсчитывается доля позитивных и негативных слов.\n"
+            "График показывает зависимость CTI от тональности сообщений LLM (круги) и пользователя (крестики).\n"
+            "Фон: красный – негативная зона, зелёный – позитивная.\n"
+            "Цвет точек соответствует CTI (красный – низкий, зелёный – высокий)."
+        )).pack(side=tk.LEFT, padx=5)
 
         self.status_label = ttk.Label(ctrl, text="Диалог не выбран", foreground='gray')
         self.status_label.pack(side=tk.LEFT, padx=10)
 
-        # Основная область: таблица + график
         paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # Таблица результатов
         table_frame = ttk.Frame(paned)
         cols = ("#", "CTI", "Тональность LLM", "Тональность User")
         self.table = ttk.Treeview(table_frame, columns=cols, show='headings', height=5)
@@ -154,14 +152,12 @@ class TonalityTab(ttk.Frame):
         self.table.pack(fill=tk.BOTH, expand=True)
         paned.add(table_frame, weight=1)
 
-        # График
         graph_frame = ttk.Frame(paned)
         self.fig, self.ax = plt.subplots(figsize=(7, 4.5))
         self.canvas = FigureCanvasTkAgg(self.fig, master=graph_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         paned.add(graph_frame, weight=3)
 
-        # Пояснение
         ttk.Label(self, text="Упрощённый анализ тональности на основе словарей. "
                              "CTI vs. доля позитивных/негативных слов.",
                   font=('Segoe UI', 8), foreground='gray').pack(pady=(5, 0))
@@ -194,7 +190,6 @@ class TonalityTab(ttk.Frame):
         if not self.messages:
             messagebox.showwarning("Предупреждение", "Сначала загрузите или выберите диалог")
             return
-
         pairs = []
         sentiments_llm = []
         sentiments_user = []
@@ -219,63 +214,40 @@ class TonalityTab(ttk.Frame):
                 i += 2
             else:
                 i += 1
-
         if not pairs:
             messagebox.showinfo("Результат", "Нет полных пар LLM/User")
             return
-
-        # Заполняем таблицу
         self.table.delete(*self.table.get_children())
         for idx, cti, s_llm, s_user in pairs:
             self.table.insert("", tk.END, values=(idx, f"{cti:.2f}", f"{s_llm:.3f}", f"{s_user:.3f}"))
-
-        # Удаляем старый colorbar, если он был
         if self.cbar is not None:
             self.cbar.remove()
             self.cbar = None
-
-        # График
         self.ax.clear()
         self.ax.set_title("Зависимость CTI от тональности сообщений", fontsize=12)
         self.ax.set_xlabel("Тональность (от -1 негатив до +1 позитив)")
         self.ax.set_ylabel("CTI")
         self.ax.grid(True, alpha=0.25)
-
-        # Фоновые зоны
-        self.ax.axvspan(-1.1, -0.05, facecolor='#FFCDD2', alpha=0.15)   # негатив
-        self.ax.axvspan( 0.05,  1.1, facecolor='#C8E6C9', alpha=0.15)   # позитив
-
-        # Цветовая карта для точек в зависимости от CTI
-        from matplotlib.colors import Normalize
+        self.ax.axvspan(-1.1, -0.05, facecolor='#FFCDD2', alpha=0.15)
+        self.ax.axvspan( 0.05,  1.1, facecolor='#C8E6C9', alpha=0.15)
         cmap = plt.cm.RdYlGn
-        norm = Normalize(0, 100)
-
-        # Точки LLM (круги)
+        norm = plt.Normalize(0, 100)
         sc_llm = self.ax.scatter(sentiments_llm, ctis, c=ctis, cmap=cmap, norm=norm,
                                  marker='o', s=100, edgecolors='#333333', linewidth=0.8,
                                  label='LLM sentiment')
-        # Точки User (крестики)
-        sc_user = self.ax.scatter(sentiments_user, ctis, c=ctis, cmap=cmap, norm=norm,
-                                  marker='X', s=120, edgecolors='#333333', linewidth=0.8,
-                                  label='User sentiment')
-
-        # Подписи номеров пар
+        self.ax.scatter(sentiments_user, ctis, c=ctis, cmap=cmap, norm=norm,
+                       marker='X', s=120, edgecolors='#333333', linewidth=0.8,
+                       label='User sentiment')
         for idx, cti, s_llm, s_user in pairs:
             self.ax.annotate(str(idx), (s_llm, cti), textcoords="offset points",
                              xytext=(0, 10), ha='center', fontsize=8, color='#1E88E5')
             self.ax.annotate(str(idx), (s_user, cti), textcoords="offset points",
                              xytext=(0, -14), ha='center', fontsize=8, color='#D81B60')
-
-        # Средний CTI
         avg_cti = np.mean(ctis)
         self.ax.axhline(y=avg_cti, color='#555555', linestyle='--', alpha=0.7,
                         label=f'Средний CTI: {avg_cti:.1f}')
-
-        # Цветовая шкала — используем self.fig.colorbar, чтобы избежать привязки к другой фигуре
         self.cbar = self.fig.colorbar(sc_llm, ax=self.ax, fraction=0.035, pad=0.04)
         self.cbar.set_label('CTI', rotation=270, labelpad=15)
-
-        # Фиксируем оси
         self.ax.set_xlim(-1.1, 1.1)
         self.ax.set_ylim(0, 105)
         self.ax.legend(loc='upper right', fontsize='small')

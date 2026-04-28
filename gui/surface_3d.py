@@ -1,7 +1,7 @@
 # gui/surface_3d.py
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -35,7 +35,14 @@ class Surface3DTab(ttk.Frame):
             ttk.Scale(ctrl_frame, from_=frm, to=to, variable=var, orient=tk.HORIZONTAL,
                       length=80).pack(side=tk.LEFT, padx=2)
 
-        ttk.Button(ctrl_frame, text="Обновить", command=self._update_surface).pack(side=tk.LEFT, padx=10)
+        ttk.Button(ctrl_frame, text="Обновить", command=self._update_surface).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl_frame, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: 3D-анализ",
+            "Показывает поверхность CTI в зависимости от SI и DM\n"
+            "при фиксированных остальных параметрах.\n"
+            "Перемещайте ползунки CM, LD, FQ, RL и нажимайте «Обновить».\n"
+            "Цветовая шкала справа соответствует значению CTI."
+        )).pack(side=tk.LEFT, padx=5)
 
         self.fig = plt.figure(figsize=(8,6))
         self.ax = self.fig.add_subplot(111, projection='3d')
@@ -43,25 +50,19 @@ class Surface3DTab(ttk.Frame):
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     def _update_surface(self, event=None):
-        # Удаляем старый colorbar, если он был
         if self.cbar is not None:
             self.cbar.remove()
             self.cbar = None
-
-        self.ax.cla()   # очистка оси
-
+        self.ax.cla()
         si_vals = np.linspace(0, 1, 20)
         dm_vals = np.linspace(0, 1, 20)
         SI, DM = np.meshgrid(si_vals, dm_vals)
         CTI = np.zeros_like(SI)
-
         system, _ = fuzzy_engine.build_system()
-
         cm_val = self.cm_var.get()
         ld_val = self.ld_var.get()
         fq_val = self.fq_var.get()
         rl_val = self.rl_var.get()
-
         for i in range(len(si_vals)):
             for j in range(len(dm_vals)):
                 sim = ctrl.ControlSystemSimulation(system)
@@ -72,16 +73,12 @@ class Surface3DTab(ttk.Frame):
                 sim.input['FQ'] = fq_val
                 sim.input['RL'] = rl_val
                 sim.compute()
-                # Используем безопасное извлечение с значением по умолчанию 0.0
                 CTI[i,j] = sim.output.get('CTI', 0.0)
-
         surf = self.ax.plot_surface(SI, DM, CTI, cmap=cm.coolwarm,
                                     linewidth=0, antialiased=True, alpha=0.9)
         self.ax.set_xlabel('SI (Структурная целостность)')
         self.ax.set_ylabel('DM (Маркеры сомнения)')
         self.ax.set_zlabel('CTI')
         self.ax.set_title('3D‑поверхность CTI(SI, DM)')
-
-        # Новый colorbar
         self.cbar = self.fig.colorbar(surf, ax=self.ax, shrink=0.5, aspect=10)
         self.canvas.draw()

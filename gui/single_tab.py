@@ -10,7 +10,6 @@ from .plotting import draw_trust_membership
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
-# Примеры (сокращённый список для краткости)
 BUILTIN_EXAMPLES = [
     {
         "name": "1. Высокое доверие",
@@ -47,7 +46,6 @@ BUILTIN_EXAMPLES = [
     }
 ]
 
-
 class SingleTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, padding=10)
@@ -64,8 +62,21 @@ class SingleTab(ttk.Frame):
         self.example_combo.pack(fill='x', pady=(0, 5))
         self.example_combo.bind('<<ComboboxSelected>>', self._load_example)
 
-        ttk.Button(left, text="Загрузить пару из JSON", command=self._load_json).pack(fill='x', pady=(0, 5))
-        ttk.Button(left, text="Сохранить отчёт", command=self._save_report).pack(fill='x', pady=(0, 10))
+        btn_frame = ttk.Frame(left)
+        btn_frame.pack(fill='x', pady=(0, 5))
+        ttk.Button(btn_frame, text="Загрузить пару из JSON", command=self._load_json).pack(side=tk.LEFT)
+        ttk.Button(btn_frame, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: Одиночный ответ",
+            "Оцените одну диалоговую пару.\n\n"
+            "SI – структурная целостность (0..1)\n"
+            "CM – дискурсивные маркеры (0..0.15)\n"
+            "LD – лексическое разнообразие (0..1)\n"
+            "DM – маркеры сомнения в ответе пользователя (0..1)\n"
+            "FQ – наличие переспроса (0/1)\n"
+            "RL – длина ответа, нормированная на 50 слов (0..1)\n\n"
+            "CTI – итоговый индекс доверия (0–100)."
+        )).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Сохранить отчёт", command=self._save_report).pack(side=tk.LEFT)
 
         ttk.Label(left, text="Ответ LLM:", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
         self.llm_text = tk.Text(left, height=8, wrap='word', font=('Segoe UI', 10), bg='#fafafa')
@@ -82,7 +93,6 @@ class SingleTab(ttk.Frame):
         self.progress['maximum'] = 100
         self.progress['value'] = 0
 
-        # Результаты
         result_frame = ttk.LabelFrame(left, text="Результаты", padding=10)
         result_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -107,7 +117,6 @@ class SingleTab(ttk.Frame):
         ttk.Label(result_frame, textvariable=self.fq_var).pack(anchor='w')
         ttk.Label(result_frame, textvariable=self.rl_var).pack(anchor='w')
 
-        # График
         right = ttk.Frame(self, padding=10)
         right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         self.fig, self.ax = plt.subplots(figsize=(5.5, 4.2))
@@ -167,7 +176,6 @@ class SingleTab(ttk.Frame):
         self.rl_var.set(f"RL (норм. длина ответа): {res['RL']:.4f}")
 
         self.progress['value'] = cti
-        # Цвет прогрессбара по уровню
         style_name = f"custom.Horizontal.TProgressbar"
         style = ttk.Style()
         if cti >= 75:

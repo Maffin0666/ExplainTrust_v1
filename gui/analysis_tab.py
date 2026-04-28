@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from explaintrust import ExplainTrust, fuzzy_engine
-from skfuzzy import control as ctrl
 
 BUILTIN_DIALOGS = [
     {
@@ -69,7 +68,6 @@ BUILTIN_DIALOGS = [
     }
 ]
 
-
 class AnalysisTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent, padding=10)
@@ -90,6 +88,13 @@ class AnalysisTab(ttk.Frame):
         ttk.Button(ctrl, text="Загрузить JSON", command=self._load_dialog_json).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Анализировать", command=self._analyze_dialog).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Radar", command=self._show_radar).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: Анализ пар",
+            "Выберите пару для детального разбора.\n"
+            "Таблица показывает сработавшие нечёткие правила с их степенью активации.\n"
+            "График признаков отображает значения всех шести метрик.\n"
+            "Radar-диаграмма строит профиль признаков для выбранной пары."
+        )).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(self, text="Текст диалога (LLM: ... / User: ...):", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
         self.dialog_text = tk.Text(self, height=8, wrap='word', font=('Segoe UI', 10), bg='#fafafa')
@@ -197,17 +202,11 @@ class AnalysisTab(ttk.Frame):
         if idx < 0 or idx >= len(self.turns):
             return
         turn = self.turns[idx]
-
         system, _ = fuzzy_engine.build_system()
         input_data = {
-            'SI': turn['SI'],
-            'CM': turn['CM'],
-            'LD': turn['LD'],
-            'DM': turn['DM'],
-            'FQ': turn['FQ'],
-            'RL': turn['RL']
+            'SI': turn['SI'], 'CM': turn['CM'], 'LD': turn['LD'],
+            'DM': turn['DM'], 'FQ': turn['FQ'], 'RL': turn['RL']
         }
-
         activations = []
         for rule in system.rules:
             act = 1.0
@@ -218,19 +217,16 @@ class AnalysisTab(ttk.Frame):
                 univ = term.parent.universe
                 idx_val = np.argmin(np.abs(univ - val))
                 act = min(act, mf[idx_val])
-            # Правильный доступ к label терма консеквента
             if rule.consequent:
                 cons_label = rule.consequent[0].term.label
             else:
                 cons_label = "?"
             desc = f"IF {' AND '.join([f'{t.parent.label} is {t.label}' for t in rule.antecedent_terms])} THEN CTI is {cons_label}"
             activations.append((desc, act))
-
         self.rules_tree.delete(*self.rules_tree.get_children())
         for desc, act in activations:
             if act > 0.001:
                 self.rules_tree.insert("", tk.END, values=(desc, f"{act:.3f}"))
-
         self.feat_ax.clear()
         features = ['SI', 'CM', 'LD', 'DM', 'FQ', 'RL']
         values = [turn[f] for f in features]

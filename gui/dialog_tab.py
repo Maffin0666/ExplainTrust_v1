@@ -48,28 +48,8 @@ BUILTIN_DIALOGS = [
             {"role": "llm", "content": "Если потребуется помощь с конкретными параметрами, дайте знать."},
             {"role": "user", "content": "Спасибо, я разобрался. Ваш анализ помог."}
         ]
-    },
-    {
-        "name": "Длинный диалог (7 пар)",
-        "messages": [
-            {"role": "llm", "content": "Здравствуйте! Чем могу помочь?"},
-            {"role": "user", "content": "Расскажите о преимуществах Python."},
-            {"role": "llm", "content": "Python — язык с простым синтаксисом, огромным сообществом и библиотеками для науки, веба, автоматизации."},
-            {"role": "user", "content": "А есть ли недостатки?"},
-            {"role": "llm", "content": "Да, медленнее компилируемых языков, сложности с многопоточностью из-за GIL."},
-            {"role": "user", "content": "Что такое GIL?"},
-            {"role": "llm", "content": "Global Interpreter Lock блокирует выполнение нескольких потоков одновременно."},
-            {"role": "user", "content": "Понял, спасибо! Помогло."},
-            {"role": "llm", "content": "Обращайтесь!"},
-            {"role": "user", "content": "Ок."},
-            {"role": "llm", "content": "Если будут ещё вопросы, я здесь."},
-            {"role": "user", "content": "Спасибо, пока что всё."},
-            {"role": "llm", "content": "Хорошего дня!"},
-            {"role": "user", "content": "И вам!"}
-        ]
     }
 ]
-
 
 class DialogTab(ttk.Frame):
     def __init__(self, parent):
@@ -91,6 +71,13 @@ class DialogTab(ttk.Frame):
         ttk.Button(ctrl, text="Загрузить JSON", command=self._load_dialog_json).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Оценить", command=self._evaluate_dialog).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Сохранить отчёт", command=self._save_report).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: Диалог",
+            "Загрузите или введите диалог в формате LLM: ... User: ...\n"
+            "Система разобьёт его на пары и вычислит CTI для каждой.\n"
+            "График показывает динамику доверия, таблица – числовые значения.\n"
+            "Цветовой прогресс-бар отражает средний CTI."
+        )).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(self, text="Текст диалога (LLM: ... / User: ...):", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
         self.dialog_text = tk.Text(self, height=10, wrap='word', font=('Segoe UI', 10), bg='#fafafa')
@@ -138,61 +125,50 @@ class DialogTab(ttk.Frame):
                 break
 
     def _load_dialog_json(self):
-        """Загружает диалог из JSON-файла (массив сообщений)."""
         path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
         if not path:
             return
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            if not isinstance(data, list):
+            if isinstance(data, list):
+                text = ""
+                for msg in data:
+                    if msg['role'] == 'llm':
+                        prefix = "LLM: "
+                    elif msg['role'] == 'user':
+                        prefix = "User: "
+                    else:
+                        prefix = ""
+                    text += prefix + msg['content'].replace('\n', '\n    ') + "\n"
+                self.dialog_text.delete("1.0", tk.END)
+                self.dialog_text.insert("1.0", text.strip())
+                messagebox.showinfo("Успех", "Диалог загружен")
+            else:
                 messagebox.showerror("Ошибка", "Ожидался массив сообщений")
-                return
-
-            # Формируем текст с префиксами, сохраняя переносы строк внутри сообщений
-            lines = []
-            for msg in data:
-                role = msg.get('role', '').lower()
-                content = msg.get('content', '')
-                if role == 'llm':
-                    prefix = "LLM: "
-                elif role == 'user':
-                    prefix = "User: "
-                else:
-                    prefix = ""
-                # Заменяем внутренние переводы строк на отступ, чтобы не сломать парсинг
-                content_escaped = content.replace('\n', '\n    ')
-                lines.append(prefix + content_escaped)
-            full_text = "\n".join(lines)
-
-            self.dialog_text.delete("1.0", tk.END)
-            self.dialog_text.insert("1.0", full_text)
-            messagebox.showinfo("Успех", f"Загружено {len(data)} сообщений")
         except Exception as e:
             messagebox.showerror("Ошибка чтения", str(e))
 
     def _parse_dialog(self, raw):
-        """Превращает текст диалога с префиксами LLM: / User: в список сообщений."""
         lines = raw.strip().splitlines()
         msgs = []
         cur_role = None
         cur_content = []
         for line in lines:
-            # Удаляем отступы, добавленные при загрузке
-            clean_line = line.lstrip()
-            if clean_line.startswith("LLM:"):
+            clean = line.lstrip()
+            if clean.startswith("LLM:"):
                 if cur_role and cur_content:
                     msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
                 cur_role = 'llm'
-                cur_content = [clean_line[4:].strip()]
-            elif clean_line.startswith("User:"):
+                cur_content = [clean[4:].strip()]
+            elif clean.startswith("User:"):
                 if cur_role and cur_content:
                     msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
                 cur_role = 'user'
-                cur_content = [clean_line[5:].strip()]
+                cur_content = [clean[5:].strip()]
             else:
                 if cur_role:
-                    cur_content.append(clean_line)
+                    cur_content.append(clean)
         if cur_role and cur_content:
             msgs.append({'role': cur_role, 'content': '\n'.join(cur_content).strip()})
         return msgs
@@ -208,9 +184,8 @@ class DialogTab(ttk.Frame):
             return
         turns = self.engine.evaluate_dialog_turns(messages)
         if not turns:
-            messagebox.showinfo("Информация", "Нет полных пар LLM→User")
+            messagebox.showinfo("Информация", "Нет полных пар")
             return
-
         self.tree.delete(*self.tree.get_children())
         cti_vals = []
         for i, t in enumerate(turns, 1):
@@ -218,8 +193,6 @@ class DialogTab(ttk.Frame):
             cti_vals.append(t['CTI'])
         avg = np.mean(cti_vals)
         self.avg_var.set(f"Средний CTI: {avg:.2f}")
-
-        # Цветной прогресс-бар
         self.progress['value'] = avg
         style = ttk.Style()
         if avg >= 75:
@@ -234,7 +207,6 @@ class DialogTab(ttk.Frame):
             color = '#B71C1C'
         style.configure("dialog.Horizontal.TProgressbar", background=color, troughcolor='#EEEEEE')
         self.progress.config(style="dialog.Horizontal.TProgressbar")
-
         draw_dialog_dynamics(self.ax, list(range(1, len(cti_vals) + 1)), cti_vals, avg)
         self.canvas.draw()
         self._last_turns = turns, cti_vals, avg
