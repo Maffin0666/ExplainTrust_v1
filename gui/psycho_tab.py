@@ -7,7 +7,6 @@ import numpy as np
 from explaintrust import ExplainTrust
 from .tonality_tab import simple_sentiment
 
-# ---------- Общие встроенные диалоги ----------
 BUILTIN_DIALOGS = [
     {
         "name": "Доверительный диалог",
@@ -86,6 +85,13 @@ class PsychoPortraitTab(ttk.Frame):
 
         ttk.Button(ctrl, text="Загрузить диалог (JSON)", command=self._load_dialog).pack(side=tk.LEFT, padx=5)
         ttk.Button(ctrl, text="Сформировать портрет", command=self._analyze).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl, text="?", width=3, command=lambda: messagebox.showinfo(
+            "Справка: Психопортрет",
+            "Формирует текстовое описание типового поведения пользователя\n"
+            "на основе средних значений признаков и тональности по всем парам диалога.\n"
+            "Учитываются: уровень доверия, склонность к сомнениям,\n"
+            "частота переспросов, длина ответов и эмоциональная окраска."
+        )).pack(side=tk.LEFT, padx=5)
 
         self.status = ttk.Label(ctrl, text="Диалог не выбран")
         self.status.pack(side=tk.LEFT, padx=10)
@@ -134,48 +140,40 @@ class PsychoPortraitTab(ttk.Frame):
                 i += 2
             else:
                 i += 1
-
         if not turns:
             messagebox.showinfo("Результат", "Нет полных пар LLM/User")
             return
-
         avg_cti = np.mean([t[0]['CTI'] for t in turns])
         avg_dm = np.mean([t[0]['DM'] for t in turns])
         avg_fq = np.mean([t[0]['FQ'] for t in turns])
         avg_rl = np.mean([t[0]['RL'] for t in turns])
         avg_sent_user = np.mean([t[2] for t in turns])
-
         if avg_cti >= 70:
             trust = "высокий"
         elif avg_cti >= 40:
             trust = "средний"
         else:
             trust = "низкий"
-
         if avg_dm > 0.1:
             doubt = "склонен к сомнениям"
         else:
             doubt = "уверенный"
-
         if avg_fq > 0.5:
             questions = "часто задаёт уточняющие вопросы"
         else:
             questions = "редко переспрашивает"
-
         if avg_rl > 0.6:
             length = "развёрнутые ответы (обсуждение)"
         elif avg_rl < 0.2:
             length = "короткие, односложные реакции"
         else:
             length = "лаконичные, но содержательные ответы"
-
         if avg_sent_user > 0.02:
             tone = "положительная"
         elif avg_sent_user < -0.02:
             tone = "отрицательная"
         else:
             tone = "нейтральная"
-
         portrait = (
             f"ПСИХОЛОГИЧЕСКИЙ ПОРТРЕТ ПОЛЬЗОВАТЕЛЯ\n"
             f"==================================\n"
@@ -188,6 +186,5 @@ class PsychoPortraitTab(ttk.Frame):
             f"{doubt}, {questions}. Стиль общения: {length}. "
             f"Эмоциональная окраска сообщений: {tone}.\n"
         )
-
         self.portrait_text.delete("1.0", tk.END)
         self.portrait_text.insert("1.0", portrait)

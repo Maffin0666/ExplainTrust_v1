@@ -1,7 +1,7 @@
 # gui/__init__.py
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 
 from .single_tab import SingleTab
@@ -21,6 +21,15 @@ class ExplainTrustApp:
         self.theme = 'light'
         self._apply_theme()
 
+        # ---------- Меню ----------
+        menubar = tk.Menu(root)
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="О программе", command=self._show_about)
+        help_menu.add_command(label="Как интерпретировать результаты", command=self._show_help)
+        menubar.add_cascade(label="Справка", menu=help_menu)
+        root.config(menu=menubar)
+
+        # ---------- Вкладки ----------
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
@@ -66,6 +75,35 @@ class ExplainTrustApp:
             self.theme = 'light'
             self.theme_btn.config(text="Тёмная тема")
         self._apply_theme()
+
+    def _show_about(self):
+        messagebox.showinfo("О программе",
+            "ExplainTrust v1.0\n\n"
+            "Нечеткая экспертная система оценки когнитивного доверия пользователя "
+            "к ответам больших языковых моделей на основе лингвистического анализа.\n\n"
+            "Разработана в рамках лабораторной работы по дисциплине "
+            "«Интеллектуальные информационные системы».\n"
+            "РГСУ, 2026"
+        )
+
+    def _show_help(self):
+        messagebox.showinfo("Справка по интерпретации",
+            "Индекс когнитивного доверия (CTI) принимает значения от 0 до 100.\n\n"
+            "Уровни доверия:\n"
+            "  0–15  — очень низкое (пользователь отвергает ответ)\n"
+            " 15–35  — низкое (активное несогласие, переспросы)\n"
+            " 35–55  — среднее (неуверенность, единичные сомнения)\n"
+            " 55–75  — высокое (принятие с возможными уточнениями)\n"
+            " 75–100 — очень высокое (полное доверие)\n\n"
+            "Признаки внешнего локуса (качество ответа LLM):\n"
+            "  SI — структурная целостность (0..1)\n"
+            "  CM — насыщенность дискурсивными маркерами (0..0.15)\n"
+            "  LD — лексическое разнообразие (0..1)\n\n"
+            "Признаки внутреннего локуса (реакция пользователя):\n"
+            "  DM — доля маркеров сомнения (0..1)\n"
+            "  FQ — наличие переспроса (0/1)\n"
+            "  RL — нормированная длина ответа (0..1)"
+        )
 
 def main():
     root = tk.Tk()
