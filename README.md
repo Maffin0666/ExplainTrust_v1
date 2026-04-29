@@ -112,10 +112,10 @@
    ```bash
    pip install -r requirements.txt
    ```
-  Если файла requirements.txt нет, выполните:
-  ```bash
-  pip install nltk scikit-fuzzy numpy matplotlib networkx setuptools==68.0.0
-  ```
+   Если файла requirements.txt нет, выполните:
+   ```bash
+   pip install nltk scikit-fuzzy numpy matplotlib networkx setuptools==68.0.0
+   ```
 
 4. **Скачайте данные NLTK (только при первом запуске)**
    ```bash
