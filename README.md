@@ -112,7 +112,7 @@
    ```bash
    pip install -r requirements.txt
    ```
-Если файла requirements.txt нет, выполните:
+  Если файла requirements.txt нет, выполните:
   ```bash
   pip install nltk scikit-fuzzy numpy matplotlib networkx setuptools==68.0.0
   ```
@@ -132,7 +132,7 @@
    ```
 
 ## 📂 Структура проекта
-
+```
 ExplainTrust/
 ├── run_gui.py                   # точка входа в GUI
 ├── run_example.py               # консольный тест
@@ -153,6 +153,7 @@ ExplainTrust/
     ├── surface_3d.py            # вкладка «3D‑анализ»
     ├── psycho_tab.py            # вкладка «Психопортрет»
     └── plotting.py              # общие функции отрисовки графиков
+```
 
 ## 🖥 Графический интерфейс
 
@@ -241,7 +242,15 @@ for turn in turns:
 ## 🤝 Контакты
 Работа была реализована в рамках задания дисциплины "Интеллектуальные информационные системы"
 
-**Автор:** Хлуднева Мария Викторовна, студентка РГСУ (ПИН-Б-02-Д-2023-1)  
+**Автор:** студентка РГСУ (ПИН-Б-02-Д-2023-1)  
 **Репозиторий:** [https://github.com/Maffin0666/ExplainTrust_v1](https://github.com/Maffin0666/ExplainTrust_v1) 
-**Email:** your.email@example.com
+**Email:** maffin0666@gmail.com
 
+
+## 📄 Лицензия
+
+Этот проект распространяется под лицензией MIT. Подробнее см. в файле [LICENSE](LICENSE).
+
+---
+
+*© 2026 Maf_fin0*
