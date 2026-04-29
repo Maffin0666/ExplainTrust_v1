@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/username/ExplainTrust?style=social)](https://github.com/username/ExplainTrust)
+[![GitHub stars](https://img.shields.io/github/stars/Maffin0666/ExplainTrust_v1?style=social)](https://github.com/Maffin0666/ExplainTrust_v1)
 
 **ExplainTrust** — это легковесная, интерпретируемая система, которая анализирует диалог между человеком и языковой моделью (LLM) и вычисляет **Индекс когнитивного доверия (Cognitive Trust Index, CTI)**.  
 В основе лежит нечёткая логика Мамдани, а все признаки извлекаются с помощью простых лингвистических методов, без использования тяжёлых нейросетей.  
